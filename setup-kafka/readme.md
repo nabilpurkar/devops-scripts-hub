@@ -4,10 +4,8 @@ This repository contains scripts for easy installation and management of Apache 
 
 ## Features
 
-- 🚀 Easy installation and uninstallation of Kafka with KRaft
 - ⚙️ Configurable parameters for different environments
 - 🔄 Support for different replication factors and partition counts
-- 🧹 Clean uninstallation process
 - 🔍 Built-in validation and error handling
 - 📝 Detailed logging and status messages
 - 🎨 Color-coded output for better readability
@@ -29,7 +27,7 @@ cd kafka-kraft-scripts
 
 2. Make scripts executable:
 ```bash
-chmod +x kafka-install.sh kafka-uninstall.sh
+chmod +x kafka-install.sh
 ```
 
 3. Run the installation script with default settings (suitable for testing):
