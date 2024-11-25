@@ -372,10 +372,85 @@ transfer_files() {
     fi
 }
 
+# Detect available container runtime
+detect_runtime() {
+    if command -v crictl >/dev/null 2>&1; then
+        echo "crictl"
+    elif command -v podman >/dev/null 2>&1; then
+        echo "podman"
+    elif command -v docker >/dev/null 2>&1; then
+        echo "docker"
+    else
+        echo "none"
+    fi
+}
+
+# Pull image using detected runtime
+pull_image() {
+    local runtime=$1
+    local image=$2
+    
+    case "$runtime" in
+        "crictl")
+            sudo crictl pull "$image"
+            ;;
+        "podman")
+            sudo podman pull "$image"
+            ;;
+        "docker")
+            sudo docker pull "$image"
+            ;;
+    esac
+}
+
+# Save image using detected runtime
+save_image() {
+    local runtime=$1
+    local image=$2
+    local output=$3
+    
+    case "$runtime" in
+        "crictl")
+            sudo /usr/local/bin/ctr -n=k8s.io images export "$output" "$image"
+            ;;
+        "podman")
+            sudo podman save -o "$output" "$image"
+            ;;
+        "docker")
+            sudo docker save -o "$output" "$image"
+            ;;
+    esac
+}
+
+# Load image using detected runtime
+load_image() {
+    local runtime=$1
+    local input=$2
+    
+    case "$runtime" in
+        "crictl")
+            sudo /usr/local/bin/ctr -n=k8s.io images import "$input"
+            ;;
+        "podman")
+            sudo podman load -i "$input"
+            ;;
+        "docker")
+            sudo docker load -i "$input"
+            ;;
+    esac
+}
+
 save_images() {
     echo "Saving Kubernetes images..."
-    # Ask for node type
-    echo "Do You Want To Save Images For Master or Worker Node (master/worker)?"
+    local RUNTIME=$(detect_runtime)
+    
+    if [ "$RUNTIME" = "none" ]; then
+        echo "No supported container runtime found. Please install crictl, podman, or docker."
+        return 1
+    fi
+    
+    echo "Using container runtime: $RUNTIME"
+    
     read -p "Enter your choice (master/worker): " NODE_TYPE
     case "${NODE_TYPE,,}" in
         master|worker)
@@ -392,33 +467,22 @@ save_images() {
     # Common images for both master and worker
     common_images=(
         "registry.k8s.io/kube-proxy:v${K8S_VERSION}"
-
         "registry.k8s.io/pause:${PAUSE_REGISTRY_VERSION}"
     )
     
     # Master-specific images
     master_images=(
         "registry.k8s.io/kube-apiserver:v${K8S_VERSION}"
-
         "registry.k8s.io/kube-controller-manager:v${K8S_VERSION}"
-
         "registry.k8s.io/kube-scheduler:v${K8S_VERSION}"
-
         "registry.k8s.io/etcd:${ETCD_IMAGE_VERSION}"
-
         "registry.k8s.io/coredns/coredns:${CORE_DNS_IMAGE_VERSION}"
-
         "docker.io/calico/cni:${CALICO_VERSION}"
-
         "docker.io/calico/node:${CALICO_VERSION}"
-
         "docker.io/calico/kube-controllers:${CALICO_VERSION}"
     )
 
-    # Initialize images array with common images
     images=("${common_images[@]}")
-    
-    # Add master-specific images if this is a master node
     if [ "${NODE_TYPE,,}" = "master" ]; then
         images+=("${master_images[@]}")
         archive_name="k8s-master-images.tar"
@@ -430,37 +494,28 @@ save_images() {
     echo "Pulling images for ${NODE_TYPE} node..."
     for img in "${images[@]}"; do
         echo "Pulling $img..."
-        sudo crictl pull "$img" || {
+        pull_image "$RUNTIME" "$img" || {
             echo "Failed to pull $img"
             continue
         }
     done
 
-    # Create a manifest file
     manifest_file="${PACKAGES_DIR}/image_manifest.txt"
     printf "%s\n" "${images[@]}" > "$manifest_file"
     
-    # Create directory for individual tars
     mkdir -p "${PACKAGES_DIR}/images"
     
-    # Save each image individually
-    echo "Saving images..."
+    # Save each image
     for img in "${images[@]}"; do
         echo "Saving $img..."
-        # Create a safe filename from the image name
         safe_name=$(echo "$img" | tr '/:' '_')
-        # Export the image
-        sudo /usr/local/bin/ctr -n=k8s.io images export "${PACKAGES_DIR}/images/${safe_name}.tar" "$img" || {
+        save_image "$RUNTIME" "$img" "${PACKAGES_DIR}/images/${safe_name}.tar" || {
             echo "Failed to save $img"
             continue
         }
     done
 
-    # Create final archive
-    echo "Creating archive ${archive_name}..."
     tar czf "${archive_name}" -C "${PACKAGES_DIR}" images image_manifest.txt
-    
-    # Cleanup
     rm -rf "${PACKAGES_DIR}/images"
     
     echo "Successfully saved images to ${archive_name}"
@@ -469,15 +524,21 @@ save_images() {
 
 load_images() {
     echo "Loading Kubernetes images..."
+    local RUNTIME=$(detect_runtime)
+    
+    if [ "$RUNTIME" = "none" ]; then
+        echo "No supported container runtime found. Please install crictl, podman, or docker."
+        return 1
+    fi
+    
+    echo "Using container runtime: $RUNTIME"
 
-    # Always ask for installation path first
     read -p "Enter the installation packages path: " INSTALL_PATH
     if [ ! -d "$INSTALL_PATH" ]; then
         echo "Error: Directory $INSTALL_PATH does not exist"
         return 1
     fi
 
-    # Ask for node type
     read -p "Is this a master or worker node? (master/worker): " NODE_TYPE
     case "${NODE_TYPE,,}" in
         master|worker)
@@ -489,7 +550,6 @@ load_images() {
             ;;
     esac
 
-    # Set archive name based on node type
     local archive_name
     if [ "${NODE_TYPE,,}" = "master" ]; then
         archive_name="${INSTALL_PATH}/k8s-master-images.tar"
@@ -497,40 +557,24 @@ load_images() {
         archive_name="${INSTALL_PATH}/k8s-worker-images.tar"
     fi
 
-    # Check for archive
     if [ ! -f "${archive_name}" ]; then
         echo "Error: ${archive_name} not found!"
         return 1
     fi
 
-    # Create temporary directory
     temp_dir=$(mktemp -d)
     trap 'rm -rf "${temp_dir}"' EXIT
 
-    # Extract archive
-    echo "Extracting images..."
     tar xzf "${archive_name}" -C "${temp_dir}"
 
-    # Load images
-    echo "Loading images..."
     for image_tar in "${temp_dir}"/images/*.tar; do
         echo "Loading ${image_tar}..."
-        sudo /usr/local/bin/ctr -n=k8s.io images import "${image_tar}" || {
+        load_image "$RUNTIME" "${image_tar}" || {
             echo "Failed to load ${image_tar}"
             continue
         }
     done
 
-    # Verify loaded images
-    echo "Verifying loaded images..."
-    if [ "${NODE_TYPE,,}" = "master" ]; then
-        echo "Master node images:"
-        sudo crictl images | grep -E 'k8s.io|calico'
-    else
-        echo "Worker node images:"
-        sudo crictl images | grep -E 'pause|kube-proxy'
-    fi
-    
     echo "Images loaded successfully for ${NODE_TYPE} node!"
     return 0
 }
