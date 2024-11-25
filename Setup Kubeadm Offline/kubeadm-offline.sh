@@ -552,7 +552,6 @@ setup_master() {
             sudo kubeadm init \
                 --pod-network-cidr=${POD_NETWORK_CIDR} \
                 --kubernetes-version=${K8S_VERSION} \
-                --apiserver-advertise-address=${API_SERVER_IP} \
                 --control-plane-endpoint=${API_SERVER_IP}
             ;;
         2)
@@ -587,7 +586,7 @@ setup_master() {
             
             # Initialize the cluster
             if sudo kubeadm init \
-                --apiserver-advertise-address=${API_SERVER_IP} \
+                --control-plane-endpoint=${API_SERVER_IP}
                 --pod-network-cidr=${POD_NETWORK_CIDR} \
                 --kubernetes-version=${K8S_VERSION} \
                 --ignore-preflight-errors=SystemVerification \
