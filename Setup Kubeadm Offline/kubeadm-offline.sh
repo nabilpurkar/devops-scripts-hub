@@ -468,6 +468,9 @@ save_images() {
     common_images=(
         "registry.k8s.io/kube-proxy:v${K8S_VERSION}"
         "registry.k8s.io/pause:${PAUSE_REGISTRY_VERSION}"
+        "docker.io/calico/node:${CALICO_VERSION}"
+        "docker.io/calico/cni:${CALICO_VERSION}"
+        "docker.io/calico/kube-controllers:${CALICO_VERSION}"
     )
     
     # Master-specific images
@@ -720,10 +723,13 @@ setup_master() {
 
 setup_worker() {
     echo "Setting up worker node..."
-        
+    configure_prerequisites    
     read -p "Enter the kubeadm join command from master: " JOIN_CMD
     sudo $JOIN_CMD
     
+    kubeadm config images pull --cri-socket unix:///var/run/containerd/containerd.sock
+
+
     echo "Worker node setup completed!"
 }
 
