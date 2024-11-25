@@ -15,7 +15,7 @@ ETCD_IMAGE_VERSION="3.5.15-0"
 CORE_DNS_IMAGE_VERSION="v1.10.1"
 
 
-POD_NETWORK_CIDR="10.244.0.0/16"
+POD_NETWORK_CIDR="192.168.0.0/16"
 
 BASE_DIR="${HOME}"
 PACKAGES_DIR="${BASE_DIR}/packages"
@@ -70,23 +70,25 @@ configure_prerequisites() {
     sudo tee /etc/modules-load.d/containerd.conf <<EOF
 overlay
 br_netfilter
+nf_conntrack
 EOF
     
     # Load modules immediately
     sudo modprobe overlay
     sudo modprobe br_netfilter
+    sudo modprobe nf_conntrack
     
     # Setup required sysctl params
     sudo tee /etc/sysctl.d/kubernetes.conf <<EOF
 net.bridge.bridge-nf-call-ip6tables = 1
 net.bridge.bridge-nf-call-iptables = 1
 net.ipv4.ip_forward = 1
+net.netfilter.nf_conntrack_max = 131072
 EOF
     
     # Apply sysctl params without reboot
     sudo sysctl --system
 }
-
 
 download_packages() {
     echo "Downloading required packages..."
@@ -205,13 +207,12 @@ install_packages() {
     # Install dependencies one by one to see which fail
     for pkg in conntrack-tools kubernetes-cni cri-tools ebtables ethtool iptables runc socat; do
         echo "Installing ${pkg}..."
-        if sudo rpm -Uvh --force --nodeps "${PACKAGES_DIR}/kubeadm"/${pkg}*.rpm; then
+        if sudo rpm -Uvh --force --nodeps "${INSTALL_PATH}/kubeadm"/${pkg}*.rpm; then
             echo "✓ Successfully installed ${pkg}"
         else
             echo "✗ Failed to install ${pkg}, error code: $?"
         fi
     done
-
     
 
     echo "Installing containerd..."
@@ -223,14 +224,17 @@ install_packages() {
         # Install containerd service file
         sudo cp "${INSTALL_PATH}/containerd/containerd.service" /usr/lib/systemd/system/
         
+        sudo ln -s /usr/local/bin/containerd /usr/bin/containerd
+
         # Create default containerd configuration
         sudo mkdir -p /etc/containerd
         sudo containerd config default | sudo tee /etc/containerd/config.toml > /dev/null
         
         # Update containerd configuration to use systemd cgroup driver
         sudo sed -i 's/SystemdCgroup \= false/SystemdCgroup \= true/g' /etc/containerd/config.toml
-        sudo sed -i "s|registry.k8s.io/pause:3.8|registry.k8s.io/pause:${PAUSE_REGISTRY_VERSION}|g" /etc/containerd/config.toml
-    
+        ##PAUSE_REGISTRY_VERSION##
+        sudo sed -i 's|registry.k8s.io/pause:3.8|registry.k8s.io/pause:3.9|g' /etc/containerd/config.toml
+
         # Configure and start service
         sudo systemctl daemon-reload
         sudo systemctl enable containerd
@@ -595,11 +599,11 @@ setup_master() {
             
             # Initialize the cluster
             if sudo kubeadm init \
-                --control-plane-endpoint=${API_SERVER_IP}
+                --control-plane-endpoint=${API_SERVER_IP} \
                 --pod-network-cidr=${POD_NETWORK_CIDR} \
                 --kubernetes-version=${K8S_VERSION} \
                 --ignore-preflight-errors=SystemVerification \
-                --cri-socket unix:///var/run/containerd/containerd.sock \
+                --cri-socket unix:///run/containerd/containerd.sock \
                 --v=5; then
 
                 # Wait for admin.conf to be created
