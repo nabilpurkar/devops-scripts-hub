@@ -202,21 +202,23 @@ install_packages() {
     
     # Install dependencies first
     echo "Installing dependencies..."
-    sudo rpm -Uvh --force --nodeps \
-        "${PACKAGES_DIR}/kubeadm"/conntrack-tools*.rpm \
-        "${PACKAGES_DIR}/kubeadm"/kubernetes-cni*.rpm \
-        "${PACKAGES_DIR}/kubeadm"/cri-tools*.rpm \
-        "${PACKAGES_DIR}/kubeadm"/ebtables*.rpm \
-        "${PACKAGES_DIR}/kubeadm"/ethtool*.rpm \
-        "${PACKAGES_DIR}/kubeadm"/iptables*.rpm \
-        "${PACKAGES_DIR}/kubeadm"/runc*.rpm \
-        "${PACKAGES_DIR}/kubeadm"/socat*.rpm 2>/dev/null || true
+    # Install dependencies one by one to see which fail
+    for pkg in conntrack-tools kubernetes-cni cri-tools ebtables ethtool iptables runc socat; do
+        echo "Installing ${pkg}..."
+        if sudo rpm -Uvh --force --nodeps "${PACKAGES_DIR}/kubeadm"/${pkg}*.rpm; then
+            echo "✓ Successfully installed ${pkg}"
+        else
+            echo "✗ Failed to install ${pkg}, error code: $?"
+        fi
+    done
+
+    
 
     echo "Installing containerd..."
     CONTAINERD_TAR="${INSTALL_PATH}/containerd/containerd-${CONTAINERD_VERSION}-linux-amd64.tar.gz"
     if [ -f "$CONTAINERD_TAR" ]; then
         # Extract containerd to /usr/local/bin instead of just /usr/local
-        sudo tar -C /usr/local/bin -xzf "$CONTAINERD_TAR"
+        sudo tar -C /usr/local/ -xzf "$CONTAINERD_TAR"
         
         # Install containerd service file
         sudo cp "${INSTALL_PATH}/containerd/containerd.service" /usr/lib/systemd/system/
@@ -235,13 +237,20 @@ install_packages() {
         sudo systemctl restart containerd
         sudo systemctl status containerd --no-pager
 
-        # Create symlink for system-wide access
-        sudo ln -s /usr/local/bin/containerd /usr/bin/containerd
+        # Configure crictl to use containerd
+        echo "Configuring crictl to use containerd..."
+        cat <<EOF | sudo tee /etc/crictl.yaml
+runtime-endpoint: unix:///run/containerd/containerd.sock
+image-endpoint: unix:///run/containerd/containerd.sock
+timeout: 10
+debug: false
+EOF
+
     else
         echo "Error: Containerd archive not found at $CONTAINERD_TAR"
         return 1
-    fi    
-
+    fi
+  
     # Install CNI plugins
     echo "Installing CNI plugins..."
     sudo mkdir -p /opt/cni/bin
