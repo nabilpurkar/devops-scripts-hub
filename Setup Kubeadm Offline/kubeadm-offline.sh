@@ -300,8 +300,8 @@ transfer_files() {
     echo "==================================="
     echo "File Transfer Configuration"
     echo "==================================="
-    read -p "Enter worker node IP: " WORKER_IP
-    read -p "Enter worker node username: " WORKER_USER
+    read -p "Enter node IP: " WORKER_IP
+    read -p "Enter node username: " WORKER_USER
     
     echo -e "\nSelect authentication method:"
     echo "1. SSH Key"
