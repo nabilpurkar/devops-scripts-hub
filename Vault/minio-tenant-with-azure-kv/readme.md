@@ -63,12 +63,50 @@ This guide walks you through setting up MinIO with Azure Key Vault for encryptio
 In your Key Vault, go to "Access control (IAM)" and add these roles for your app:
 
 ```bash
-Required Roles:
-1. Key Vault Administrator
-2. Key Vault Crypto Officer
-3. Key Vault Crypto User
-4. Key Vault Secrets Officer
-5. Key Vault Certificate User
+Required Azure Key Vault Roles:
+
+Key Vault Administrator
+Key Vault Crypto Officer
+Key Vault Crypto User
+Key Vault Secrets Officer
+Key Vault Certificate User
+
+Key Creation Options:
+
+Automatic Key Creation:
+
+Give full Admin access to the App Registration on Key Vault
+MinIO tenant will automatically create the encryption key named "minio-key"
+
+
+Manual Key Creation (two ways):
+a. Using Azure Owner/Admin Account:
+bashCopyaz keyvault key create \
+  --vault-name miniokv \
+  --name minio \
+  --kty RSA \
+  --size 2048
+b. Using App Registration (after assigning all 5 roles):
+bashCopy# First login with service principal
+az login --service-principal \
+  --username "APP_ID" \
+  --password "CLIENT_SECRET" \
+  --tenant "TENANT_ID"
+
+# Then create key
+az keyvault key create \
+  --vault-name miniokv \
+  --name minio \
+  --kty RSA \
+  --size 2048
+
+
+Note:
+
+Wait 2-5 minutes after assigning roles for RBAC propagation
+If using automatic creation, make sure all 5 roles are assigned
+For manual creation, you can use either your admin account or the properly configured service principal
+
 ```
 
 For each role:
