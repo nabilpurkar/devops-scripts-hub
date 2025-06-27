@@ -182,202 +182,230 @@ Official docs: [https://docs.rke2.io/upgrade/automated/](https://docs.rke2.io/up
 
 ---
 
-### ✅ Final Verification (Post Upgrade)
-```
+## ✅ Final Cluster Health Check (After Upgrade)
+
+```bash
 kubectl get nodes
 /usr/local/bin/rke2 --version
 kubectl get pods -A
 ```
 
-### ✅ RKE2 Node Type Differences (Control Plane vs Worker) + Useful Commands
-### 🆚 Key Difference Between Control Plane Node vs Agent (Worker) Node (By Command)
+---
 
-Node Type	Which Service You Start	Which Binary	Purpose
+## ✅ RKE2 Node Types: Control Plane vs Worker Node
 
-Control Plane Node (Master)	systemctl start rke2-server	/usr/local/bin/rke2 server	Runs Kubernetes API server, controller, scheduler, embedded etcd
+| Node Type               | Service Command                  | Binary Path             | Runs                      |
+|-------------------------|----------------------------------|-------------------------|---------------------------|
+| Control Plane (Master)  | `systemctl start rke2-server`    | `/usr/local/bin/rke2 server` | API server, Scheduler, Controller, Embedded etcd |
+| Worker (Agent)          | `systemctl start rke2-agent`     | `/usr/local/bin/rke2 agent`  | Kubelet, Container Runtime (No etcd, No API server) |
 
-Agent Node (Worker)	systemctl start rke2-agent	/usr/local/bin/rke2 agent	Runs only kubelet and container runtime. No etcd, no API server
+---
 
-### ✅ Must-Know Commands for Both (Control plane & Worker)
-🔹 Systemd Service Commands (Start / Stop / Enable / Status)
+## ✅ Must-Know Service Commands (Control Plane & Worker)
 
-Action	Control Plane	Worker Node
+| Action                | Control Plane Node             | Worker Node            |
+|-----------------------|--------------------------------|------------------------|
+| Reload systemd        | `systemctl daemon-reload`      | `systemctl daemon-reload` |
+| Enable service        | `systemctl enable rke2-server` | `systemctl enable rke2-agent` |
+| Start service         | `systemctl start rke2-server`  | `systemctl start rke2-agent` |
+| Check status          | `systemctl status rke2-server` | `systemctl status rke2-agent` |
+| View logs             | `journalctl -u rke2-server -f` | `journalctl -u rke2-agent -f` |
 
-Reload systemd	systemctl daemon-reload	systemctl daemon-reload
+---
 
-Enable Service	systemctl enable rke2-server	systemctl enable rke2-agent
+## ✅ Cluster Interaction (Run on Control Plane Node Only)
 
-Start Service	systemctl start rke2-server	systemctl start rke2-agent
+| Task                  | Command                          |
+|-----------------------|----------------------------------|
+| Export kubeconfig     | `export KUBECONFIG=/etc/rancher/rke2/rke2.yaml` |
+| Check nodes           | `kubectl get nodes`             |
+| Check pods            | `kubectl get pods -A`           |
+| Check RKE2 version    | `/usr/local/bin/rke2 --version` |
+| Take etcd snapshot    | `/usr/local/bin/rke2 etcd-snapshot save` |
 
-Check Service Status	systemctl status rke2-server	systemctl status rke2-agent
+---
 
-Follow Logs	journalctl -u rke2-server -f	journalctl -u rke2-agent -f
+## ✅ Important Folder Paths
 
-### ✅ Cluster Interaction Commands (Control Plane Node Only)
+| Purpose                   | Path                                     |
+|---------------------------|-----------------------------------------|
+| RKE2 binaries             | `/usr/local/bin/`                      |
+| RKE2 config               | `/etc/rancher/rke2/config.yaml`        |
+| Airgap images             | `/var/lib/rancher/rke2/agent/images/`  |
+| Kubeconfig (master only)  | `/etc/rancher/rke2/rke2.yaml`          |
+| Logs (systemd journal)    | `journalctl -u rke2-server -f` or `journalctl -u rke2-agent -f` |
 
-Action	Command
+---
 
-Export kubeconfig file	export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+## ✅ Joining New Nodes
 
-Check node status	kubectl get nodes
+### 📌 Get Cluster Token (Run on First Master Node)
 
-Check pods	kubectl get pods -A
-
-Check version	/usr/local/bin/rke2 --version
-
-Take etcd snapshot	/usr/local/bin/rke2 etcd-snapshot save
-
-### ✅ Folder Paths to Know
-
-Purpose	Path
-
-RKE2 binaries	/usr/local/bin/
-
-RKE2 config	/etc/rancher/rke2/config.yaml
-
-Images (airgap tar files)	/var/lib/rancher/rke2/agent/images/
-
-Kubeconfig	/etc/rancher/rke2/rke2.yaml
-
-Logs (systemd)	journalctl -u rke2-server -f or journalctl -u rke2-agent -f
-
-### ✅ How to Get <token> for Workers and Extra Masters:
-
-On your first master node (control plane):
-
+```bash
 cat /var/lib/rancher/rke2/server/node-token
+```
 
+---
 
-### ✅ How to Add Extra Control Plane Node (HA Master)
-On new master node:
+### ✅ Add Extra Control Plane Node (HA Master)
 
-# Create config file
+On the **new master node**:
+
+1. **Create config file:**
+
+```bash
 mkdir -p /etc/rancher/rke2/
 
 cat <<EOF > /etc/rancher/rke2/config.yaml
-server: https://<any-existing-master-ip>:9345
-token: <same-cluster-token-from-first-master>
+server: https://<EXISTING-MASTER-IP>:9345
+token: <CLUSTER-TOKEN>
 cni: calico
 node-name: master-2
 EOF
+```
 
-# Run installer
+2. **Install RKE2 (airgap way):**
+
+```bash
 INSTALL_RKE2_ARTIFACT_PATH=/rke2-artifacts sh install.sh
+```
 
-# Enable and start server service
+3. **Enable and start service:**
+
+```bash
 systemctl daemon-reload
 systemctl enable rke2-server
 systemctl start rke2-server
+```
 
 ---
 
-### ✅ How to Add Extra Worker Node
-On worker node:
-# Create config file
+### ✅ Add Extra Worker Node
+
+On the **worker node**:
+
+1. **Create config file:**
+
+```bash
 mkdir -p /etc/rancher/rke2/
 
 cat <<EOF > /etc/rancher/rke2/config.yaml
-server: https://<any-master-ip>:9345
-token: <same-cluster-token-from-first-master>
+server: https://<MASTER-IP>:9345
+token: <CLUSTER-TOKEN>
 cni: calico
 node-name: worker-1
 EOF
+```
 
-# Run installer
+2. **Install RKE2 (airgap way):**
+
+```bash
 INSTALL_RKE2_ARTIFACT_PATH=/rke2-artifacts sh install.sh
+```
 
-# Enable and start agent service
+3. **Enable and start service:**
+
+```bash
 systemctl daemon-reload
 systemctl enable rke2-agent
 systemctl start rke2-agent
+```
 
---- 
+---
 
-✅ How to Verify After Adding Nodes:
-Run on any Control Plane Node:
+### ✅ Verify Node Join Status (Run on Control Plane)
 
+```bash
 export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
 kubectl get nodes
+```
 
-You should now see:
-Multiple masters (Ready, ControlPlane role)
-Multiple workers (Ready, worker role)
+✅ You should see multiple **ControlPlane** and **Worker** nodes in **Ready** state.
+
+---
+
+## ✅ Manual Airgap RKE2 Upgrade (Example: v1.24 → v1.28)
+
+For **both master and worker nodes**:
+
+1. Place new airgap artifacts (`rke2`, `rke2-images.tar`) at `/rke2-artifacts/`.
+2. Run the installer:
+
+```bash
+INSTALL_RKE2_ARTIFACT_PATH=/rke2-artifacts sh install.sh
+```
+
+3. Restart the RKE2 service:
+
+```bash
+# For master:
+systemctl restart rke2-server
+
+# For worker:
+systemctl restart rke2-agent
+```
+
+4. Validate cluster:
+
+```bash
+kubectl get nodes
+```
 
 ---
 
-### ✅ Troubleshooting Common Issues:
-Problem	Fix
+## ✅ Optional: Automated Upgrade (Production Grade)
 
-Node not joining	Double check server IP, token, firewall/ports
+**Pre-requisite:** Private airgap registry with following images:
 
-Service failing	journalctl -u rke2-server -f or journalctl -u rke2-agent -f
+- `rancher/rke2-upgrade`
+- `rancher/system-upgrade-controller`
+- `rancher/kubectl`
 
-Kubeconfig file missing	Only exists on master nodes
+Use `system-upgrade-controller` for automated upgrades.
 
-Version check	/usr/local/bin/rke2 --version
-
-Want etcd backup	/usr/local/bin/rke2 etcd-snapshot save (master only)
+> 📌 Refer Rancher official docs for full setup.
 
 ---
-## ✅ Summary:
+
+## ✅ etcd Backup (Control Plane Only)
+
+```bash
+/usr/local/bin/rke2 etcd-snapshot save
+```
+
+---
+
+## ✅ Troubleshooting Quick Reference
+
+| Problem                          | Solution                                   |
+|----------------------------------|-------------------------------------------|
+| Node not joining                 | Verify server IP, token, network/firewall |
+| Service won’t start              | Check logs: `journalctl -u rke2-* -f`     |
+| Kubeconfig file missing (worker) | Exists only on master nodes              |
+| Cluster version check            | `/usr/local/bin/rke2 --version`          |
+| etcd backup                      | Run `rke2 etcd-snapshot save` on master |
+
+---
+
+## ✅ Summary
+
 This guide covers:
 
-✅ Air-gapped RKE2 Installation
+✅ Airgap RKE2 installation (Single and Multi-node)  
+✅ etcd snapshot backup  
+✅ Manual upgrade (v1.24 → v1.28 example)  
+✅ Optional automated upgrade using system-upgrade-controller  
+✅ Adding new control plane and worker nodes  
+✅ Must-know service and cluster commands  
+✅ Folder paths  
+✅ Troubleshooting common RKE2 issues  
 
-Single Master (Control Plane)
+---
 
-Multi-master (HA Control Plane)
+📚 **Official Docs:**  
+[Rancher RKE2 Documentation](https://docs.rke2.io/)
 
-Worker (Agent) nodes
+🐛 **For Bugs / Issues:**  
+[RKE2 GitHub Issues](https://github.com/rancher/rke2/issues)
 
-✅ etcd Snapshot Backup
-
-How to take manual etcd backup from control plane nodes
-
-✅ Manual RKE2 Upgrade (Airgap)
-
-Example upgrade from v1.24 → v1.28
-
-Both for server and agent nodes
-
-Proper steps for placing new artifacts and restarting services
-
-✅ Automated Upgrade Method (Optional - Production Grade)
-
-Using system-upgrade-controller
-
-Pre-requisite: Airgap Private Registry mirroring
-
-Required images:
-
-rancher/rke2-upgrade
-
-rancher/system-upgrade-controller
-
-rancher/kubectl
-
-✅ Adding Extra Nodes
-
-Extra control plane nodes (HA setup)
-
-Extra worker nodes
-
-Fetching node-token for joining
-
-✅ Troubleshooting & Health Check Commands
-
-Service status
-
-Logs
-
-Version check
-
-Cluster node health (kubectl get nodes)
-
-📚 Further References:
-📖 Official Docs:
-Rancher RKE2 Documentation
-
-🐛 Issue Troubleshooting / Bug Reporting:
-RKE2 GitHub Issues
 
