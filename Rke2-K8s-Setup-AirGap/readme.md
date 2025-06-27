@@ -191,37 +191,60 @@ kubectl get pods -A
 
 ### ✅ RKE2 Node Type Differences (Control Plane vs Worker) + Useful Commands
 ### 🆚 Key Difference Between Control Plane Node vs Agent (Worker) Node (By Command)
+
 Node Type	Which Service You Start	Which Binary	Purpose
+
 Control Plane Node (Master)	systemctl start rke2-server	/usr/local/bin/rke2 server	Runs Kubernetes API server, controller, scheduler, embedded etcd
+
 Agent Node (Worker)	systemctl start rke2-agent	/usr/local/bin/rke2 agent	Runs only kubelet and container runtime. No etcd, no API server
 
 ### ✅ Must-Know Commands for Both (Control plane & Worker)
 🔹 Systemd Service Commands (Start / Stop / Enable / Status)
+
 Action	Control Plane	Worker Node
+
 Reload systemd	systemctl daemon-reload	systemctl daemon-reload
+
 Enable Service	systemctl enable rke2-server	systemctl enable rke2-agent
+
 Start Service	systemctl start rke2-server	systemctl start rke2-agent
+
 Check Service Status	systemctl status rke2-server	systemctl status rke2-agent
+
 Follow Logs	journalctl -u rke2-server -f	journalctl -u rke2-agent -f
 
 ### ✅ Cluster Interaction Commands (Control Plane Node Only)
+
 Action	Command
+
 Export kubeconfig file	export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+
 Check node status	kubectl get nodes
+
 Check pods	kubectl get pods -A
+
 Check version	/usr/local/bin/rke2 --version
+
 Take etcd snapshot	/usr/local/bin/rke2 etcd-snapshot save
 
 ### ✅ Folder Paths to Know
+
 Purpose	Path
+
 RKE2 binaries	/usr/local/bin/
+
 RKE2 config	/etc/rancher/rke2/config.yaml
+
 Images (airgap tar files)	/var/lib/rancher/rke2/agent/images/
+
 Kubeconfig	/etc/rancher/rke2/rke2.yaml
+
 Logs (systemd)	journalctl -u rke2-server -f or journalctl -u rke2-agent -f
 
 ### ✅ How to Get <token> for Workers and Extra Masters:
+
 On your first master node (control plane):
+
 cat /var/lib/rancher/rke2/server/node-token
 
 
@@ -284,10 +307,15 @@ Multiple workers (Ready, worker role)
 
 ### ✅ Troubleshooting Common Issues:
 Problem	Fix
+
 Node not joining	Double check server IP, token, firewall/ports
+
 Service failing	journalctl -u rke2-server -f or journalctl -u rke2-agent -f
+
 Kubeconfig file missing	Only exists on master nodes
+
 Version check	/usr/local/bin/rke2 --version
+
 Want etcd backup	/usr/local/bin/rke2 etcd-snapshot save (master only)
 
 ---
