@@ -181,19 +181,17 @@ Official docs: [https://docs.rke2.io/upgrade/automated/](https://docs.rke2.io/up
 ---
 
 ## ✅ Final Verification (Post Upgrade)
-
-```bash
 kubectl get nodes
 /usr/local/bin/rke2 --version
 kubectl get pods -A
 
-✅ RKE2 Node Type Differences (Control Plane vs Worker) + Useful Commands
+### ✅ RKE2 Node Type Differences (Control Plane vs Worker) + Useful Commands
 🆚 Key Difference Between Control Plane Node vs Agent (Worker) Node (By Command)
 Node Type	Which Service You Start	Which Binary	Purpose
 Control Plane Node (Master)	systemctl start rke2-server	/usr/local/bin/rke2 server	Runs Kubernetes API server, controller, scheduler, embedded etcd
 Agent Node (Worker)	systemctl start rke2-agent	/usr/local/bin/rke2 agent	Runs only kubelet and container runtime. No etcd, no API server
 
-✅ Must-Know Commands for Both (Control plane & Worker)
+### ✅ Must-Know Commands for Both (Control plane & Worker)
 🔹 Systemd Service Commands (Start / Stop / Enable / Status)
 Action	Control Plane	Worker Node
 Reload systemd	systemctl daemon-reload	systemctl daemon-reload
@@ -202,7 +200,7 @@ Start Service	systemctl start rke2-server	systemctl start rke2-agent
 Check Service Status	systemctl status rke2-server	systemctl status rke2-agent
 Follow Logs	journalctl -u rke2-server -f	journalctl -u rke2-agent -f
 
-✅ Cluster Interaction Commands (Control Plane Node Only)
+### ✅ Cluster Interaction Commands (Control Plane Node Only)
 Action	Command
 Export kubeconfig file	export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
 Check node status	kubectl get nodes
@@ -210,14 +208,14 @@ Check pods	kubectl get pods -A
 Check version	/usr/local/bin/rke2 --version
 Take etcd snapshot	/usr/local/bin/rke2 etcd-snapshot save
 
-✅ Folder Paths to Know
+### ✅ Folder Paths to Know
 Purpose	Path
 RKE2 binaries	/usr/local/bin/
 RKE2 config	/etc/rancher/rke2/config.yaml
 Images (airgap tar files)	/var/lib/rancher/rke2/agent/images/
 Kubeconfig	/etc/rancher/rke2/rke2.yaml
 Logs (systemd)	journalctl -u rke2-server -f or journalctl -u rke2-agent -f
-```
+
 ### ✅ How to Get <token> for Workers and Extra Masters:
 On your first master node (control plane):
 cat /var/lib/rancher/rke2/server/node-token
