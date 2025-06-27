@@ -5,7 +5,7 @@
 ## 📌 Table of Contents
 
 - [Pre-Requisites (Common for All Nodes)](#pre-requisites-common-for-all-nodes)
-- [Step 1: Prepare Airgap Artifacts](#step-1-prepare-airgap-artifacts)
+- [Step 1: Prepare Airgap Artifacts](#-step-1-prepare-airgap-artifacts)
 - [Step 2: RKE2 Server Installation (First Control Plane Node)](#step-2-rke2-server-installation-first-control-plane-node)
 - [Step 3: Agent (Worker Node) Installation](#step-3-agent-worker-node-installation)
 - [Step 4: Taking ETCD Snapshots (Before Upgrade)](#step-4-taking-etcd-snapshots-before-upgrade)
