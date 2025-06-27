@@ -194,9 +194,6 @@ kubectl apply -f system-upgrade-controller.yaml
 
 [Official Docs](https://docs.rke2.io/upgrade/automated/)
 
----
-
----
 
 ## ✅ Joining New Nodes
 
@@ -258,7 +255,6 @@ kubectl get nodes
 /usr/local/bin/rke2 --version
 kubectl get pods -A
 ```
----
 
 ## ✅ Important Commands and Paths
 
