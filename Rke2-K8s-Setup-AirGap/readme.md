@@ -85,7 +85,14 @@ journalctl -u rke2-server -f
 
 ```bash
 export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
-/usr/local/bin/kubectl get nodes
+/var/lib/rancher/rke2/bin/kubectl get nodes
+
+Option 1: Export Path Temporarily (For Current Session Only)
+export PATH=$PATH:/var/lib/rancher/rke2/bin
+
+Option 2: Make it Permanent (For All Future Sessions)
+echo 'export PATH=$PATH:/var/lib/rancher/rke2/bin' >> ~/.bashrc
+source ~/.bashrc
 ```
 
 ---
