@@ -4,19 +4,19 @@
 
 ## 📌 Table of Contents
 
-* [Pre-Requisites](#pre-requisites-common-for-all-nodes)
-* [Step 1: Prepare Airgap Artifacts](#step-1-prepare-airgap-artifacts)
-* [Step 2: Install RKE2 Server (Control Plane)](#step-2-rke2-server-installation-first-control-plane-node)
-* [Step 3: Install RKE2 Agent (Worker Node)](#step-3-agent-worker-node-installation)
-* [Step 4: Take ETCD Snapshot Before Upgrade](#step-4-taking-etcd-snapshots-before-upgrade)
-* [Step 5: Manual RKE2 Upgrade (v1.24 → v1.28)](#step-5-manual-rke2-upgrade-v124x--v128x)
-* [Step 6: Optional - Automated Upgrade (System Upgrade Controller)](#step-6-automated-upgrade-using-system-upgrade-controller-optional-for-airgap)
-* [Step 7: Final Cluster Health Check](#final-cluster-health-check-after-upgrade)
-* [Step 8: Adding New Nodes](#joining-new-nodes)
-* [Important Commands and Paths](#important-commands-and-paths)
-* [ETCD Backup](#etcd-backup-control-plane-only)
-* [Troubleshooting Quick Reference](#troubleshooting-quick-reference)
-* [Summary](#summary)
+- [Pre-Requisites (Common for All Nodes)](#pre-requisites-common-for-all-nodes)
+- [Step 1: Prepare Airgap Artifacts](#step-1-prepare-airgap-artifacts)
+- [Step 2: RKE2 Server Installation (First Control Plane Node)](#step-2-rke2-server-installation-first-control-plane-node)
+- [Step 3: Agent (Worker Node) Installation](#step-3-agent-worker-node-installation)
+- [Step 4: Taking ETCD Snapshots (Before Upgrade)](#step-4-taking-etcd-snapshots-before-upgrade)
+- [Step 5: Manual RKE2 Upgrade (v1.24x--v1.28x)](#step-5-manual-rke2-upgrade-v124x--v128x)
+- [Step 6: Automated Upgrade Using System Upgrade Controller (Optional for Airgap)](#step-6-automated-upgrade-using-system-upgrade-controller-optional-for-airgap)
+- [Step 7: Final Cluster Health Check (After Upgrade)](#final-cluster-health-check-after-upgrade)
+- [Step 8: Joining New Nodes](#joining-new-nodes)
+- [Important Commands and Paths](#important-commands-and-paths)
+- [ETCD Backup (Control Plane Only)](#etcd-backup-control-plane-only)
+- [Troubleshooting Quick Reference](#troubleshooting-quick-reference)
+- [Summary](#summary)
 
 ---
 
