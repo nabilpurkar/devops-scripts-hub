@@ -180,13 +180,15 @@ Official docs: [https://docs.rke2.io/upgrade/automated/](https://docs.rke2.io/up
 
 ---
 
-## ✅ Final Verification (Post Upgrade)
+### ✅ Final Verification (Post Upgrade)
+```
 kubectl get nodes
 /usr/local/bin/rke2 --version
 kubectl get pods -A
+```
 
 ### ✅ RKE2 Node Type Differences (Control Plane vs Worker) + Useful Commands
-🆚 Key Difference Between Control Plane Node vs Agent (Worker) Node (By Command)
+### 🆚 Key Difference Between Control Plane Node vs Agent (Worker) Node (By Command)
 Node Type	Which Service You Start	Which Binary	Purpose
 Control Plane Node (Master)	systemctl start rke2-server	/usr/local/bin/rke2 server	Runs Kubernetes API server, controller, scheduler, embedded etcd
 Agent Node (Worker)	systemctl start rke2-agent	/usr/local/bin/rke2 agent	Runs only kubelet and container runtime. No etcd, no API server
