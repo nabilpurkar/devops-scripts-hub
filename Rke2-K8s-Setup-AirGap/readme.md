@@ -2,7 +2,25 @@
 
 ---
 
-## 📋 Pre-Requisites (Common for All Nodes)
+## 📌 Table of Contents
+
+* [Pre-Requisites](#pre-requisites-common-for-all-nodes)
+* [Step 1: Prepare Airgap Artifacts](#step-1-prepare-airgap-artifacts)
+* [Step 2: Install RKE2 Server (Control Plane)](#step-2-rke2-server-installation-first-control-plane-node)
+* [Step 3: Install RKE2 Agent (Worker Node)](#step-3-agent-worker-node-installation)
+* [Step 4: Take ETCD Snapshot Before Upgrade](#step-4-taking-etcd-snapshots-before-upgrade)
+* [Step 5: Manual RKE2 Upgrade (v1.24 → v1.28)](#step-5-manual-rke2-upgrade-v124x--v128x)
+* [Step 6: Optional - Automated Upgrade (System Upgrade Controller)](#step-6-automated-upgrade-using-system-upgrade-controller-optional-for-airgap)
+* [Step 7: Final Cluster Health Check](#final-cluster-health-check-after-upgrade)
+* [Step 8: Adding New Nodes](#joining-new-nodes)
+* [Important Commands and Paths](#important-commands-and-paths)
+* [ETCD Backup](#etcd-backup-control-plane-only)
+* [Troubleshooting Quick Reference](#troubleshooting-quick-reference)
+* [Summary](#summary)
+
+---
+
+## ✅ Pre-Requisites (Common for All Nodes)
 
 ```bash
 # Disable cloud network service
@@ -23,9 +41,9 @@ setenforce 0
 
 ---
 
-## 🧱 Step 1: Prepare Airgap Artifacts
+## ✅ Step 1: Prepare Airgap Artifacts
 
-### ✅ Download the following for your target version (on an internet machine):
+### ✅ Download Required Artifacts (From Internet Machine)
 
 | Version        | Binary                                                                                                | Images                                                                                                       | CNI Images                                                                                                          | SHA                                                                                            |
 | -------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -35,7 +53,7 @@ setenforce 0
 | 1.27.8+rke2r1  | [Binary](https://github.com/rancher/rke2/releases/download/v1.27.8%2Brke2r1/rke2.linux-amd64.tar.gz)  | [Images](https://github.com/rancher/rke2/releases/download/v1.27.8%2Brke2r1/rke2-images.linux-amd64.tar.gz)  | [Calico](https://github.com/rancher/rke2/releases/download/v1.27.8%2Brke2r1/rke2-images-calico.linux-amd64.tar.gz)  | [SHA](https://github.com/rancher/rke2/releases/download/v1.27.8%2Brke2r1/sha256sum-amd64.txt)  |
 | 1.28.4+rke2r1  | [Binary](https://github.com/rancher/rke2/releases/download/v1.28.4%2Brke2r1/rke2.linux-amd64.tar.gz)  | [Images](https://github.com/rancher/rke2/releases/download/v1.28.4%2Brke2r1/rke2-images.linux-amd64.tar.gz)  | [Calico](https://github.com/rancher/rke2/releases/download/v1.28.4%2Brke2r1/rke2-images-calico.linux-amd64.tar.gz)  | [SHA](https://github.com/rancher/rke2/releases/download/v1.28.4%2Brke2r1/sha256sum-amd64.txt)  |
 
-### ✅ SCP artifacts to airgap node:
+### ✅ Transfer Artifacts to Airgap Node
 
 ```bash
 scp -i <key.pem> -r <artifact_folder> ec2-user@<AIRGAP_NODE_IP>:/home/ec2-user
@@ -43,16 +61,15 @@ scp -i <key.pem> -r <artifact_folder> ec2-user@<AIRGAP_NODE_IP>:/home/ec2-user
 
 ---
 
-## 🚀 Step 2: RKE2 Server Installation (First Control Plane Node)
+## ✅ Step 2: RKE2 Server Installation (First Control Plane Node)
 
 ```bash
 mkdir -p /rke2-artifacts
 sudo cp /home/ec2-user/<artifact_folder>/* /rke2-artifacts/
 cd /rke2-artifacts
-
 tar xvf rke2.linux-amd64.tar.gz
 
-# Download install script (on internet, then copy)
+# Copy install script (download on internet machine first)
 curl -sfL https://get.rke2.io -o install.sh
 
 INSTALL_RKE2_ARTIFACT_PATH=/rke2-artifacts sh install.sh
@@ -64,7 +81,7 @@ systemctl start rke2-server
 journalctl -u rke2-server -f
 ```
 
-Configure kubeconfig:
+### ✅ Configure kubeconfig
 
 ```bash
 export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
@@ -73,20 +90,17 @@ export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
 
 ---
 
-## 🚀 Step 3: Agent (Worker Node) Installation
-
-### ✅ On each agent:
+## ✅ Step 3: Agent (Worker Node) Installation
 
 ```bash
 mkdir -p /rke2-artifacts
 sudo cp /home/ec2-user/<artifact_folder>/* /rke2-artifacts/
 cd /rke2-artifacts
-
 tar xvf rke2.linux-amd64.tar.gz
 INSTALL_RKE2_ARTIFACT_PATH=/rke2-artifacts sh install.sh
 ```
 
-### ✅ Create config file for agent:
+### ✅ Agent Configuration:
 
 ```bash
 mkdir -p /etc/rancher/rke2
@@ -104,7 +118,7 @@ systemctl start rke2-agent
 
 ---
 
-## 🛡️ Step 4: Taking ETCD Snapshots (Before Upgrade)
+## ✅ Step 4: Taking ETCD Snapshots (Before Upgrade)
 
 ```bash
 /usr/local/bin/rke2 etcd-snapshot save
@@ -113,9 +127,9 @@ ls /var/lib/rancher/rke2/server/db/snapshots/
 
 ---
 
-## 🔁 Step 5: Manual RKE2 Upgrade (v1.24.x → v1.28.x)
+## ✅ Step 5: Manual RKE2 Upgrade (v1.24.x → v1.28.x)
 
-For **each server and agent node**:
+Perform on **each server and agent node**:
 
 ### ✅ (A) Remove Old Images
 
@@ -139,8 +153,8 @@ INSTALL_RKE2_ARTIFACT_PATH=/rke2-artifacts sh install.sh
 ### ✅ (D) Restart Services
 
 ```bash
-systemctl restart rke2-server  # For control plane nodes
-systemctl restart rke2-agent   # For worker nodes
+systemctl restart rke2-server  # Control plane nodes
+systemctl restart rke2-agent   # Worker nodes
 ```
 
 ### ✅ (E) Verify Upgrade
@@ -152,15 +166,15 @@ kubectl get nodes
 
 ---
 
-## 🤖 Step 6: Automated Upgrade Using System Upgrade Controller (Optional for Airgap)
+## ✅ Step 6: Automated Upgrade Using System Upgrade Controller (Optional for Airgap)
 
-### ✅ Requirements to pre-pull to your private registry:
+### ✅ Required Images for Private Registry:
 
 * `rancher/system-upgrade-controller:<version>`
 * `rancher/kubectl:<version>`
 * `rancher/rke2-upgrade:<target-rke2-version>`
 
-> Example (for upgrading to 1.28.x):
+Example for 1.28.x:
 
 * `rancher/system-upgrade-controller:v0.14.0`
 * `rancher/kubectl:v1.28.0`
@@ -168,17 +182,17 @@ kubectl get nodes
 
 ### ✅ Steps:
 
-1. Mirror required images to your private registry.
-2. Update `system-upgrade-controller.yaml` with your registry path.
-3. Apply it:
+1. Mirror images to private registry.
+2. Update `system-upgrade-controller.yaml` with registry path.
+3. Apply:
 
 ```bash
 kubectl apply -f system-upgrade-controller.yaml
 ```
 
-4. Create a `Plan` CRD for control-plane upgrade, then agents.
+4. Create `Plan` CRDs for control-plane and worker upgrades.
 
-Official docs: [https://docs.rke2.io/upgrade/automated/](https://docs.rke2.io/upgrade/automated/)
+[Official Docs](https://docs.rke2.io/upgrade/automated/)
 
 ---
 
@@ -192,66 +206,15 @@ kubectl get pods -A
 
 ---
 
-## ✅ RKE2 Node Types: Control Plane vs Worker Node
-
-| Node Type               | Service Command                  | Binary Path             | Runs                      |
-|-------------------------|----------------------------------|-------------------------|---------------------------|
-| Control Plane (Master)  | `systemctl start rke2-server`    | `/usr/local/bin/rke2 server` | API server, Scheduler, Controller, Embedded etcd |
-| Worker (Agent)          | `systemctl start rke2-agent`     | `/usr/local/bin/rke2 agent`  | Kubelet, Container Runtime (No etcd, No API server) |
-
----
-
-## ✅ Must-Know Service Commands (Control Plane & Worker)
-
-| Action                | Control Plane Node             | Worker Node            |
-|-----------------------|--------------------------------|------------------------|
-| Reload systemd        | `systemctl daemon-reload`      | `systemctl daemon-reload` |
-| Enable service        | `systemctl enable rke2-server` | `systemctl enable rke2-agent` |
-| Start service         | `systemctl start rke2-server`  | `systemctl start rke2-agent` |
-| Check status          | `systemctl status rke2-server` | `systemctl status rke2-agent` |
-| View logs             | `journalctl -u rke2-server -f` | `journalctl -u rke2-agent -f` |
-
----
-
-## ✅ Cluster Interaction (Run on Control Plane Node Only)
-
-| Task                  | Command                          |
-|-----------------------|----------------------------------|
-| Export kubeconfig     | `export KUBECONFIG=/etc/rancher/rke2/rke2.yaml` |
-| Check nodes           | `kubectl get nodes`             |
-| Check pods            | `kubectl get pods -A`           |
-| Check RKE2 version    | `/usr/local/bin/rke2 --version` |
-| Take etcd snapshot    | `/usr/local/bin/rke2 etcd-snapshot save` |
-
----
-
-## ✅ Important Folder Paths
-
-| Purpose                   | Path                                     |
-|---------------------------|-----------------------------------------|
-| RKE2 binaries             | `/usr/local/bin/`                      |
-| RKE2 config               | `/etc/rancher/rke2/config.yaml`        |
-| Airgap images             | `/var/lib/rancher/rke2/agent/images/`  |
-| Kubeconfig (master only)  | `/etc/rancher/rke2/rke2.yaml`          |
-| Logs (systemd journal)    | `journalctl -u rke2-server -f` or `journalctl -u rke2-agent -f` |
-
----
-
 ## ✅ Joining New Nodes
 
-### 📌 Get Cluster Token (Run on First Master Node)
+### ✅ Get Cluster Token (From Existing Master Node)
 
 ```bash
 cat /var/lib/rancher/rke2/server/node-token
 ```
 
----
-
-### ✅ Add Extra Control Plane Node (HA Master)
-
-On the **new master node**:
-
-1. **Create config file:**
+### ✅ Add Extra Control Plane Node
 
 ```bash
 mkdir -p /etc/rancher/rke2/
@@ -262,29 +225,15 @@ token: <CLUSTER-TOKEN>
 cni: calico
 node-name: master-2
 EOF
-```
 
-2. **Install RKE2 (airgap way):**
-
-```bash
 INSTALL_RKE2_ARTIFACT_PATH=/rke2-artifacts sh install.sh
-```
 
-3. **Enable and start service:**
-
-```bash
 systemctl daemon-reload
 systemctl enable rke2-server
 systemctl start rke2-server
 ```
 
----
-
 ### ✅ Add Extra Worker Node
-
-On the **worker node**:
-
-1. **Create config file:**
 
 ```bash
 mkdir -p /etc/rancher/rke2/
@@ -295,79 +244,65 @@ token: <CLUSTER-TOKEN>
 cni: calico
 node-name: worker-1
 EOF
-```
 
-2. **Install RKE2 (airgap way):**
-
-```bash
 INSTALL_RKE2_ARTIFACT_PATH=/rke2-artifacts sh install.sh
-```
 
-3. **Enable and start service:**
-
-```bash
 systemctl daemon-reload
 systemctl enable rke2-agent
 systemctl start rke2-agent
 ```
 
----
-
-### ✅ Verify Node Join Status (Run on Control Plane)
+### ✅ Verify Node Join Status
 
 ```bash
 export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
 kubectl get nodes
 ```
 
-✅ You should see multiple **ControlPlane** and **Worker** nodes in **Ready** state.
+---
+
+## ✅ Important Commands and Paths
+
+### RKE2 Node Types:
+
+| Node Type     | Service       | Binary Path                  | Runs                                    |
+| ------------- | ------------- | ---------------------------- | --------------------------------------- |
+| Control Plane | `rke2-server` | `/usr/local/bin/rke2 server` | API server, Scheduler, Controller, etcd |
+| Worker Node   | `rke2-agent`  | `/usr/local/bin/rke2 agent`  | Kubelet, CRI                            |
+
+### Must-Know Service Commands:
+
+| Action         | Control Plane                  | Worker Node                   |
+| -------------- | ------------------------------ | ----------------------------- |
+| Reload systemd | `systemctl daemon-reload`      | `systemctl daemon-reload`     |
+| Enable service | `systemctl enable rke2-server` | `systemctl enable rke2-agent` |
+| Start service  | `systemctl start rke2-server`  | `systemctl start rke2-agent`  |
+| Check status   | `systemctl status rke2-server` | `systemctl status rke2-agent` |
+| View logs      | `journalctl -u rke2-server -f` | `journalctl -u rke2-agent -f` |
+
+### Cluster Interaction (Control Plane Node Only):
+
+| Task               | Command                                         |
+| ------------------ | ----------------------------------------------- |
+| Export kubeconfig  | `export KUBECONFIG=/etc/rancher/rke2/rke2.yaml` |
+| Check nodes        | `kubectl get nodes`                             |
+| Check pods         | `kubectl get pods -A`                           |
+| Check RKE2 version | `/usr/local/bin/rke2 --version`                 |
+| Take etcd snapshot | `/usr/local/bin/rke2 etcd-snapshot save`        |
+
+### Important Folder Paths:
+
+| Purpose       | Path                                                            |
+| ------------- | --------------------------------------------------------------- |
+| RKE2 binaries | `/usr/local/bin/`                                               |
+| RKE2 config   | `/etc/rancher/rke2/config.yaml`                                 |
+| Airgap images | `/var/lib/rancher/rke2/agent/images/`                           |
+| Kubeconfig    | `/etc/rancher/rke2/rke2.yaml`                                   |
+| Logs          | `journalctl -u rke2-server -f` or `journalctl -u rke2-agent -f` |
 
 ---
 
-## ✅ Manual Airgap RKE2 Upgrade (Example: v1.24 → v1.28)
-
-For **both master and worker nodes**:
-
-1. Place new airgap artifacts (`rke2`, `rke2-images.tar`) at `/rke2-artifacts/`.
-2. Run the installer:
-
-```bash
-INSTALL_RKE2_ARTIFACT_PATH=/rke2-artifacts sh install.sh
-```
-
-3. Restart the RKE2 service:
-
-```bash
-# For master:
-systemctl restart rke2-server
-
-# For worker:
-systemctl restart rke2-agent
-```
-
-4. Validate cluster:
-
-```bash
-kubectl get nodes
-```
-
----
-
-## ✅ Optional: Automated Upgrade (Production Grade)
-
-**Pre-requisite:** Private airgap registry with following images:
-
-- `rancher/rke2-upgrade`
-- `rancher/system-upgrade-controller`
-- `rancher/kubectl`
-
-Use `system-upgrade-controller` for automated upgrades.
-
-> 📌 Refer Rancher official docs for full setup.
-
----
-
-## ✅ etcd Backup (Control Plane Only)
+## ✅ ETCD Backup (Control Plane Only)
 
 ```bash
 /usr/local/bin/rke2 etcd-snapshot save
@@ -377,13 +312,13 @@ Use `system-upgrade-controller` for automated upgrades.
 
 ## ✅ Troubleshooting Quick Reference
 
-| Problem                          | Solution                                   |
-|----------------------------------|-------------------------------------------|
-| Node not joining                 | Verify server IP, token, network/firewall |
-| Service won’t start              | Check logs: `journalctl -u rke2-* -f`     |
-| Kubeconfig file missing (worker) | Exists only on master nodes              |
-| Cluster version check            | `/usr/local/bin/rke2 --version`          |
-| etcd backup                      | Run `rke2 etcd-snapshot save` on master |
+| Problem                     | Solution                                |
+| --------------------------- | --------------------------------------- |
+| Node not joining            | Verify server IP, token, and firewall   |
+| Service won’t start         | Check logs: `journalctl -u rke2-* -f`   |
+| Kubeconfig missing (worker) | Exists only on master nodes             |
+| Cluster version check       | `/usr/local/bin/rke2 --version`         |
+| etcd backup                 | Run `rke2 etcd-snapshot save` on master |
 
 ---
 
@@ -391,21 +326,18 @@ Use `system-upgrade-controller` for automated upgrades.
 
 This guide covers:
 
-✅ Airgap RKE2 installation (Single and Multi-node)  
-✅ etcd snapshot backup  
-✅ Manual upgrade (v1.24 → v1.28 example)  
-✅ Optional automated upgrade using system-upgrade-controller  
-✅ Adding new control plane and worker nodes  
-✅ Must-know service and cluster commands  
-✅ Folder paths  
-✅ Troubleshooting common RKE2 issues  
+* ✅ Airgap RKE2 installation (Single and Multi-node)
+* ✅ ETCD snapshot backup
+* ✅ Manual upgrade (v1.24 → v1.28 example)
+* ✅ Optional automated upgrade using system-upgrade-controller
+* ✅ Adding new control plane and worker nodes
+* ✅ Must-know service and cluster commands
+* ✅ Folder paths
+* ✅ Troubleshooting common RKE2 issues
 
 ---
 
-📚 **Official Docs:**  
-[Rancher RKE2 Documentation](https://docs.rke2.io/)
+## 📚 References
 
-🐛 **For Bugs / Issues:**  
-[RKE2 GitHub Issues](https://github.com/rancher/rke2/issues)
-
-
+* [Rancher RKE2 Documentation](https://docs.rke2.io/)
+* [RKE2 GitHub Issues](https://github.com/rancher/rke2/issues)
